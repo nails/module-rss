@@ -7,11 +7,14 @@ use Nails\Cdn\Resource\CdnObject;
 use Nails\Common\Resource\FileCache;
 use Nails\Common\Service\Locale;
 use Nails\Factory;
+use Nails\Rss\Factory\Enclosure;
 use Nails\Rss\Factory\Item;
 use Nails\Rss\Service\Rss;
 
 trait Feed
 {
+    protected ?string $variantId = null;
+
     /**
      * Returns the feed's slug, infers from the class name
      */
@@ -101,10 +104,15 @@ trait Feed
      */
     public function getXmlPath(): string
     {
+        $slug = $this->getSlug();
+        if ($this->getVariantId()) {
+            $slug .= '-' . preg_replace('/[^a-zA-Z0-9_-]+/', '-', $this->getVariantId());
+        }
+
         return implode(DIRECTORY_SEPARATOR, [
             'rss',
             'feeds',
-            $this->getSlug() . '.xml',
+            $slug . '.xml',
         ]);
     }
 
@@ -115,21 +123,19 @@ trait Feed
      */
     public function getXml(): \DOMDocument
     {
-        // Create a DOM Document
         $doc               = $this->createDoc();
         $doc->formatOutput = true;
 
-        // Create the root RSS element
-        $doc->appendChild($this->createRssNode($doc));
-
-        // Create channel element
+        $rss     = $this->createRssNode($doc);
         $channel = $this->createChannelNode($doc);
-        $doc->appendChild($channel);
 
         /** @var Item $item */
         foreach ($this->getItems() as $item) {
             $channel->appendChild($this->createItemNode($doc, $item));
         }
+
+        $rss->appendChild($channel);
+        $doc->appendChild($rss);
 
         return $doc;
     }
@@ -268,9 +274,11 @@ trait Feed
             $item->getCategory()
                 ? $this->createElement($doc, 'category', $item->getCategory())
                 : null,
-            $item->getImage()
-                ? $this->createElementEnclosure($doc, $item->getImage())
-                : null,
+            $item->getEnclosure()
+                ? $this->createElementEnclosure($doc, $item->getEnclosure())
+                : ($item->getImage()
+                    ? $this->createElementEnclosure($doc, $item->getImage())
+                    : null),
         ];
     }
 
@@ -372,24 +380,28 @@ trait Feed
     }
 
     /**
-     * Creates an enclosure node with image-orientated child elements
+     * Creates an enclosure node from a URL, CDN object, or Enclosure value
      *
      * @throws \DOMException
      */
-    protected function createElementEnclosure(\DOMDocument $doc, string|int|CdnObject $value, ?string $key = null): \DOMElement
+    protected function createElementEnclosure(\DOMDocument $doc, string|int|CdnObject|Enclosure $value, ?string $key = null): \DOMElement
     {
         $node       = $doc->createElement($key ?? 'enclosure');
         $attributes = [
             'length' => 0,
         ];
 
-        if (is_string($value)) {
+        if ($value instanceof Enclosure) {
+            $attributes['url']    = $value->url;
+            $attributes['length'] = $value->length;
+            $attributes['type']   = $value->type;
+        } elseif (is_string($value)) {
             $attributes['url'] = siteUrl($value);
         } else {
             $objectModel = Factory::model('Object', Cdn\Constants::MODULE_SLUG);
             /** @var CdnObject|null $object */
             $object = is_int($value) ? $objectModel->getById($value) : $value;
-            if ($object && $object->is_img) {
+            if ($object) {
                 $attributes['url']    = $object->url->src;
                 $attributes['length'] = $object->file->size->bytes;
                 $attributes['type']   = $object->file->mime;
@@ -397,9 +409,30 @@ trait Feed
         }
 
         foreach ($attributes as $attrName => $attrValue) {
-            $node->setAttribute($attrName, $attrValue);
+            $node->setAttribute($attrName, (string) $attrValue);
         }
 
         return $node;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function getRouteVariants(): array
+    {
+        return [];
+    }
+
+    public function withVariant(?string $variantId): self
+    {
+        $clone            = clone $this;
+        $clone->variantId = $variantId;
+
+        return $clone;
+    }
+
+    public function getVariantId(): ?string
+    {
+        return $this->variantId;
     }
 }
