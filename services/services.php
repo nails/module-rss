@@ -35,5 +35,12 @@ return [
                 return new Factory\ItemCollection($items);
             }
         },
+        'Enclosure'      => function (string $url = '', int $length = 0, string $type = 'audio/mpeg'): Factory\Enclosure {
+            if (class_exists('\App\Rss\Factory\Enclosure')) {
+                return new \App\Rss\Factory\Enclosure($url, $length, $type);
+            } else {
+                return new Factory\Enclosure($url, $length, $type);
+            }
+        },
     ],
 ];
