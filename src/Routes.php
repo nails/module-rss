@@ -18,7 +18,15 @@ class Routes implements RouteGenerator
 
         /** @var Feed $feed */
         foreach ($feeds as $feed) {
-            $routes[$feed->getUrl()] = 'rss/feed/index/' . $feed::class;
+            $variants = $feed->getRouteVariants();
+            if (empty($variants)) {
+                $routes[$feed->getUrl()] = 'rss/feed/index/' . $feed::class;
+                continue;
+            }
+
+            foreach ($variants as $url => $variantId) {
+                $routes[$url] = 'rss/feed/index/' . $feed::class . '/' . $variantId;
+            }
         }
 
         return $routes;

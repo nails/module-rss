@@ -63,10 +63,27 @@ class Compile extends Base
         $feeds = $this->getFeedsToCompile($input);
 
         foreach ($feeds as $feed) {
-            $output->write('Compiling feed <info>' . $feed::class . '</info>... ');
-            $fileCacheItem = $feed->compile();
-            $output->writeln('<info>done!</info>');
-            $output->writeln(' -> <comment>' . $fileCacheItem->getPath() . '</comment>');
+            $variants = $feed->getRouteVariants();
+            if (empty($variants)) {
+                $output->write('Compiling feed <info>' . $feed::class . '</info>... ');
+                $fileCacheItem = $feed->compile();
+                $output->writeln('<info>done!</info>');
+                $output->writeln(' -> <comment>' . $fileCacheItem->getPath() . '</comment>');
+                continue;
+            }
+
+            foreach ($variants as $url => $variantId) {
+                $variantFeed = $feed->withVariant((string) $variantId);
+                $output->write(sprintf(
+                    'Compiling feed <info>%s</info> variant <info>%s</info> (%s)... ',
+                    $feed::class,
+                    $variantId,
+                    $url
+                ));
+                $fileCacheItem = $variantFeed->compile();
+                $output->writeln('<info>done!</info>');
+                $output->writeln(' -> <comment>' . $fileCacheItem->getPath() . '</comment>');
+            }
         }
 
         $output->writeln('');

@@ -20,10 +20,15 @@ class Feed extends Base
         /** @var Output $output */
         $output = Factory::service('Output');
 
-        $slug = $uri->rsegment(3);
-        $feed = $rss->getFeed($slug ?? '');
+        $class   = $uri->rsegment(3);
+        $variant = $uri->rsegment(4);
+        $feed    = $rss->getFeed($class ?? '');
         if (!$feed) {
             show404();
+        }
+
+        if ($variant) {
+            $feed = $feed->withVariant($variant);
         }
 
         $xmlPath = $feed->getXmlPath();

@@ -74,4 +74,22 @@ interface Feed
      * and prevent loading (e.g. in multi-language situation).
      */
     public function shouldLink(): bool;
+
+    /**
+     * Additional public URLs for this feed, keyed by URL path, valued by variant id.
+     * An empty array means the default getUrl() is registered once.
+     *
+     * @return array<string, string>
+     */
+    public function getRouteVariants(): array;
+
+    /**
+     * Returns a copy of the feed bound to a variant (e.g. a series id).
+     */
+    public function withVariant(?string $variantId): self;
+
+    /**
+     * The variant currently bound to this instance, if any.
+     */
+    public function getVariantId(): ?string;
 }
