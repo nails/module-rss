@@ -58,4 +58,38 @@ class FeedTest extends TestCase
 
         self::assertSame('<description><![CDATA[<p>Fish & chips</p>]]></description>', $doc->saveXML($node));
     }
+
+    public function test_feed_has_no_variants_by_default(): void
+    {
+        $feed = new LatestPosts();
+
+        self::assertSame([], $feed->getRouteVariants());
+        self::assertNull($feed->getVariantId());
+    }
+
+    public function test_with_variant_returns_a_bound_copy(): void
+    {
+        $feed    = new LatestPosts();
+        $variant = $feed->withVariant('12');
+
+        self::assertNotSame($feed, $variant);
+        self::assertNull($feed->getVariantId());
+        self::assertSame('12', $variant->getVariantId());
+    }
+
+    public function test_variant_writes_a_distinct_xml_path(): void
+    {
+        self::assertSame(
+            implode(DIRECTORY_SEPARATOR, ['rss', 'feeds', 'tests-rss-stub-news-latest-posts-12.xml']),
+            (new LatestPosts())->withVariant('12')->getXmlPath()
+        );
+    }
+
+    public function test_variant_is_sanitised_in_the_xml_path(): void
+    {
+        self::assertSame(
+            implode(DIRECTORY_SEPARATOR, ['rss', 'feeds', 'tests-rss-stub-news-latest-posts-a-b-c.xml']),
+            (new LatestPosts())->withVariant('a/b c')->getXmlPath()
+        );
+    }
 }
